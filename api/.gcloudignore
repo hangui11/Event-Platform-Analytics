@@ -1,0 +1,19 @@
+# Files not needed to RUN the API — keep them out of the deploy upload.
+# (They live in the folder for the case writeup, but the container only needs
+#  main.py + requirements.txt + Procfile.)
+
+__pycache__/
+*.pyc
+
+# analysis / evidence — used in the console + writeup, not at runtime
+*.sql
+*.md
+BIGQUERY_OUTPUT.txt
+EXPECTED_OUTPUTS.txt
+
+# local env / tooling
+.venv/
+venv/
+.env
+
+# NOTE: requirements.txt is intentionally NOT ignored — the buildpack needs it.

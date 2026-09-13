@@ -1,0 +1,517 @@
+<title>Event Analytics Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #0f1419;
+    --surface: #181f29;
+    --surface-2: #1f2937;
+    --line: #2a3441;
+    --ink: #e6edf3;
+    --ink-dim: #aeb9c4;
+    --muted: #7d8895;
+    --accent: #38bdf8;
+    --good: #4ade80;
+    --ledgerly: #5eead4;
+    --promptly: #a78bfa;
+    --streamio: #fb7185;
+    --shadow: 0 1px 0 rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.35);
+    --font-display: "Space Grotesk", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  }
+  /* This dashboard commits to a single control-room dark look by design. */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; }
+
+  /* ---- top bar ---- */
+  .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 8px; }
+  .brand { display: flex; flex-direction: column; gap: 4px; }
+  .brand .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .brand h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(24px, 3vw, 34px); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .brand .sub { color: var(--ink-dim); font-size: 13.5px; max-width: 60ch; }
+  .brand .sub a { color: var(--accent); text-decoration: none; }
+  .brand .sub a:hover { text-decoration: underline; }
+
+  .apptabs { display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 5px; }
+  .apptabs button {
+    font-family: var(--font-body); font-size: 13px; font-weight: 500;
+    color: var(--ink-dim); background: transparent; border: 0; cursor: pointer;
+    padding: 8px 14px; border-radius: 8px; display: flex; align-items: center; gap: 7px;
+    transition: background .15s, color .15s;
+  }
+  .apptabs button .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .55; }
+  .apptabs button[aria-selected="true"] { background: var(--surface-2); color: var(--ink); }
+  .apptabs button[aria-selected="true"] .dot { opacity: 1; }
+  .apptabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .apptabs button[data-app="ledgerly"] { --c: var(--ledgerly); }
+  .apptabs button[data-app="promptly"] { --c: var(--promptly); }
+  .apptabs button[data-app="streamio"] { --c: var(--streamio); }
+  .apptabs button .dot { background: var(--c, currentColor); }
+
+  /* ---- app-color legend (compare mode) ---- */
+  .legend { display: flex; gap: 18px; margin-top: 16px; flex-wrap: wrap; }
+  .legend .lg { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); font-weight: 500; }
+  .legend .dot { width: 11px; height: 11px; border-radius: 50%; }
+
+  /* ---- morning snapshot bar ---- */
+  .snapshot { display: flex; align-items: center; gap: 14px; margin-top: 20px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+  .snapshot .tag { text-transform: uppercase; letter-spacing: 0.14em; font-size: 10.5px; }
+  .snapshot .asof b { color: var(--ink-dim); font-weight: 500; }
+
+  /* ---- KPI tiles ---- */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 12px 0 22px; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .kpi .label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .kpi .value { font-family: var(--font-display); font-weight: 600; font-size: 30px; margin-top: 8px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .kpi .value .unit { font-size: 15px; color: var(--ink-dim); font-weight: 500; margin-left: 2px; }
+  .kpi .foot { font-size: 12px; color: var(--muted); margin-top: 5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .delta { font-family: var(--font-mono); font-weight: 500; padding: 1px 7px; border-radius: 20px; font-size: 11.5px; }
+  .delta.up { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .delta.down { color: var(--streamio); background: color-mix(in srgb, var(--streamio) 14%, transparent); }
+  .delta.flat { color: var(--muted); background: var(--surface-2); }
+
+  .rethead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .retsel { display: inline-flex; gap: 3px; }
+  .retsel button { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; cursor: pointer; transition: color .12s, border-color .12s; }
+  .retsel button[aria-pressed="true"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .retsel button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---- panels grid ---- */
+  .grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 14px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px 20px; box-shadow: var(--shadow); }
+  .panel .phead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .panel h2 { font-family: var(--font-display); font-weight: 600; font-size: 15px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .panel .phint { font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+  .endpoint { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); border-radius: 7px; padding: 3px 8px; white-space: nowrap; }
+  .panel.tall { grid-row: span 1; }
+
+  /* ---- chart ---- */
+  .chartbox { width: 100%; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .axis-label { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+  .grid-line { stroke: var(--line); stroke-width: 1; }
+
+  /* ---- comparison bars ---- */
+  .barrow { display: grid; grid-template-columns: 90px 1fr 74px; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .barrow:last-child { border-bottom: 0; }
+  .barrow .name { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .barrow .name .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .bartrack { height: 10px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+  .barfill { height: 100%; border-radius: 6px; transition: width .5s ease; }
+  .barrow .num { font-family: var(--font-mono); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+
+  /* ---- feature list ---- */
+  .feat { display: flex; flex-direction: column; gap: 10px; }
+  .featrow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; }
+  .featrow .fname { font-size: 13px; color: var(--ink-dim); font-family: var(--font-mono); }
+  .featrow .ftrack { height: 8px; background: var(--surface-2); border-radius: 5px; overflow: hidden; grid-column: 1 / -1; }
+  .featrow .ffill { height: 100%; border-radius: 5px; }
+  .featrow .fnum { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ---- request strip (the engineering signature) ---- */
+  .reqstrip { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; font-family: var(--font-mono); font-size: 12.5px; }
+  .reqstrip .tag { color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; font-size: 10.5px; }
+  .reqstrip .chip { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 20px; background: var(--surface-2); border: 1px solid var(--line); }
+  .reqstrip .chip .k { color: var(--muted); }
+  .reqstrip .chip .v { color: var(--ink); }
+  .reqstrip .chip.hit { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+  .reqstrip .chip.hit .v { color: var(--good); }
+  .reqstrip .path { color: var(--accent); }
+
+  .tiers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+  .tiers .t { font-family: var(--font-mono); font-size: 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; }
+  .tiers .t b { color: var(--ink); font-weight: 500; }
+  .scalenote { font-size: 12.5px; color: var(--ink-dim); margin: 10px 2px 0; max-width: 92ch; line-height: 1.55; }
+  .scalenote b { color: var(--ink); font-weight: 600; }
+
+  footer { margin-top: 30px; color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  footer .live { display: inline-flex; align-items: center; gap: 7px; }
+  footer .live .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .barfill, .ffill { transition: none; } }
+
+  .loading { color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
+  .err { color: var(--streamio); font-family: var(--font-mono); font-size: 12px; }
+
+  @media (max-width: 820px) {
+    .grid { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 440px) {
+    .kpis { grid-template-columns: 1fr; }
+    .topbar { align-items: flex-start; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <span class="eyebrow">Event Analytics Platform · live</span>
+      <h1>Control Room</h1>
+      <span class="sub">Metrics served live from the deployed Analytics API over BigQuery — deduplicated at query time, pre-aggregated, and cached. Source: <a id="apiLink" href="#" target="_blank" rel="noopener">analytics-api</a>.</span>
+    </div>
+    <div class="apptabs" role="tablist" aria-label="Choose app">
+      <button role="tab" data-app="all" aria-selected="true">All apps</button>
+      <button role="tab" data-app="ledgerly" aria-selected="false"><span class="dot"></span>ledgerly</button>
+      <button role="tab" data-app="promptly" aria-selected="false"><span class="dot"></span>promptly</button>
+      <button role="tab" data-app="streamio" aria-selected="false"><span class="dot"></span>streamio</button>
+    </div>
+  </div>
+
+  <div class="legend" id="legend" hidden>
+    <span class="lg"><span class="dot" style="background:var(--ledgerly)"></span>ledgerly</span>
+    <span class="lg"><span class="dot" style="background:var(--promptly)"></span>promptly</span>
+    <span class="lg"><span class="dot" style="background:var(--streamio)"></span>streamio</span>
+  </div>
+
+  <div class="snapshot" id="snapshot">
+    <span class="tag">morning snapshot</span>
+    <span class="asof">latest day · <b id="asof-date">—</b></span>
+  </div>
+
+  <div class="kpis" id="kpis">
+    <div class="kpi">
+      <div class="label">Active users</div>
+      <div class="value" id="k-dau">—</div>
+      <div class="foot" id="f-dau">latest day</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Revenue</div>
+      <div class="value" id="k-rev">—</div>
+      <div class="foot" id="f-rev">latest day</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Feature uses</div>
+      <div class="value" id="k-feat">—</div>
+      <div class="foot" id="f-feat">latest day</div>
+    </div>
+    <div class="kpi">
+      <div class="rethead">
+        <span class="label" id="l-ret">Day-1 retention</span>
+        <span class="retsel" role="group" aria-label="Retention window">
+          <button data-n="1" aria-pressed="true">D1</button>
+          <button data-n="7" aria-pressed="false">D7</button>
+          <button data-n="14" aria-pressed="false">D14</button>
+          <button data-n="30" aria-pressed="false">D30</button>
+        </span>
+      </div>
+      <div class="value" id="k-ret">—</div>
+      <div class="foot" id="f-ret">active N days after install</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="phead"><h2>Active users</h2><span class="endpoint">GET /metrics/active_users</span></div>
+      <p class="phint">daily active users · <span class="rev-app">ledgerly</span></p>
+      <div class="chartbox" id="auChart"><div class="loading">loading live data…</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><h2>Revenue</h2><span class="endpoint">GET /metrics/revenue</span></div>
+      <p class="phint">daily net revenue (purchases + renewals − refunds) · <span class="rev-app">ledgerly</span></p>
+      <div class="chartbox" id="revChart"><div class="loading">loading…</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><h2>Feature usage</h2><span class="endpoint">GET /metrics/feature_uses</span></div>
+      <p class="phint">daily feature_used events · <span class="rev-app">ledgerly</span></p>
+      <div class="chartbox" id="featChart"><div class="loading">loading…</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><h2>LLM cost</h2><span class="endpoint">GET /metrics/llm_tokens</span></div>
+      <p class="phint">daily input + output tokens · <span class="rev-app">ledgerly</span></p>
+      <div class="chartbox" id="llmChart"><div class="loading">loading…</div></div>
+    </div>
+  </div>
+
+  <div class="reqstrip" id="reqstrip">
+    <span class="tag">last API call</span>
+    <span class="chip"><span class="k">GET</span> <span class="v path" id="req-path">/metrics/compare</span></span>
+    <span class="chip" id="req-bytes-chip"><span class="k">bytes scanned</span> <span class="v" id="req-bytes">—</span></span>
+    <span class="chip" id="req-cache-chip"><span class="k">cache</span> <span class="v" id="req-cache">—</span></span>
+  </div>
+  <div class="tiers">
+    <span class="t">Tier 1 · raw scan <b>~3 MB</b></span>
+    <span class="t">Tier 2 · pre-aggregated <b>~2.4 KB</b></span>
+    <span class="t">Tier 3 · cache hit <b>0 B</b></span>
+  </div>
+  <p class="scalenote">Every panel reads the <b>daily_metrics</b> summary — one row per (app, day). A month is ~30 rows <b>no matter how many billions of raw events accumulate</b>, so the morning load stays flat as history grows. The heavy dedup + JSON work runs once per daily refresh, not per request.</p>
+
+  <footer>
+    <span class="live"><span class="pulse"></span>Live from Cloud Run · europe-west1</span>
+    <span>Codeway Jr Data Engineer Case — Step 7 dashboard</span>
+  </footer>
+</div>
+
+<script>
+const API = "https://analytics-api-265843273395.europe-west1.run.app";
+document.getElementById("apiLink").href = API + "/docs";
+
+const APP_COLORS = { ledgerly: "#5eead4", promptly: "#a78bfa", streamio: "#fb7185" };
+let currentApp = "all";
+let compareCache = null;                 // /metrics/compare result (shared across apps)
+const retentionByN = {};                 // day_n -> /metrics/retention result (cached per N)
+let retDayN = 1;                          // selected retention window
+
+const fmtMoney = n => "$" + Number(n).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtInt = n => Number(n).toLocaleString();
+const fmtBytes = b => b === 0 ? "0 B" : b < 1024 ? b + " B" : b < 1048576 ? (b/1024).toFixed(1)+" KB" : (b/1048576).toFixed(2)+" MB";
+
+// change chip from two comparable numbers (current vs baseline)
+function deltaChip(cur, base, fmt) {
+  const d = cur - base;
+  const cls = d > 0 ? "up" : d < 0 ? "down" : "flat";
+  const arrow = d > 0 ? "▲" : d < 0 ? "▼" : "◦";
+  // % only makes sense against a positive baseline
+  const pct = base > 0 ? ` ${Math.abs(d / base * 100).toFixed(0)}%` : "";
+  return `<span class="delta ${cls}">${arrow} ${fmt(Math.abs(d))}${pct}</span>`;
+}
+
+// DENSE metrics (active users, feature uses): latest day vs prior day.
+function tileLatestDay(valId, footId, series, fmt) {
+  if (!series.length) { document.getElementById(valId).textContent = "—"; return; }
+  const last = series[series.length - 1].value;
+  const prev = series.length > 1 ? series[series.length - 2].value : null;
+  document.getElementById(valId).innerHTML = fmt(last);
+  document.getElementById(footId).innerHTML =
+    prev === null ? "latest day" : `latest day ${deltaChip(last, prev, fmt)} vs prior`;
+}
+
+// SPARSE / volatile metrics (revenue): a 7-day rolling total vs the previous
+// 7 days. A single day is often 0 (no purchases) and refund days go negative,
+// so a day-over-day chip is noise; a weekly window is the number a PM tracks.
+function tileRollingWeek(valId, footId, series, fmt) {
+  const sum = arr => arr.reduce((s, d) => s + d.value, 0);
+  const last7 = series.slice(-7);
+  const prev7 = series.slice(-14, -7);
+  const cur = sum(last7);
+  document.getElementById(valId).innerHTML = fmt(cur);
+  document.getElementById(footId).innerHTML =
+    prev7.length ? `last 7 days ${deltaChip(cur, sum(prev7), fmt)} vs prior 7`
+                 : "last 7 days";
+}
+
+async function api(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) throw new Error(path + " → " + res.status);
+  const data = await res.json();
+  // reflect the request cost in the strip (the engineering signature)
+  document.getElementById("req-path").textContent = path;
+  document.getElementById("req-bytes").textContent = fmtBytes(data.bytes_processed ?? 0);
+  const cacheChip = document.getElementById("req-cache-chip");
+  const hit = data.cached === true;
+  document.getElementById("req-cache").textContent = hit ? "HIT" : "MISS";
+  cacheChip.classList.toggle("hit", hit);
+  return data;
+}
+
+// ---- reusable line/area chart (hand-drawn SVG, emphasized endpoint) ----
+// fmtY formats the y-axis tick labels; gid is a unique gradient id per chart.
+function drawLine(boxId, series, gid, fmtY) {
+  const box = document.getElementById(boxId);
+  if (!series.length) { box.innerHTML = '<div class="err">no data</div>'; return; }
+  const W = 640, H = 230, padL = 50, padR = 14, padT = 14, padB = 28;
+  const vals = series.map(d => d.value);
+  const maxV = Math.max(...vals, 1);
+  const minV = Math.min(...vals, 0);
+  const span = (maxV - minV) || 1;
+  const x = i => padL + i * (W - padL - padR) / (series.length - 1 || 1);
+  const y = v => padT + (H - padT - padB) * (1 - (v - minV) / span);
+  const col = APP_COLORS[currentApp];
+
+  let grid = "", ticks = 4;
+  for (let t = 0; t <= ticks; t++) {
+    const v = minV + span * t / ticks;
+    const yy = y(v);
+    grid += `<line class="grid-line" x1="${padL}" y1="${yy.toFixed(1)}" x2="${W-padR}" y2="${yy.toFixed(1)}"/>`;
+    grid += `<text class="axis-label" x="${padL-8}" y="${(yy+3).toFixed(1)}" text-anchor="end">${fmtY(v)}</text>`;
+  }
+  const xi = [0, Math.floor(series.length/2), series.length-1];
+  let xlab = "";
+  xi.forEach(i => { xlab += `<text class="axis-label" x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle">${series[i].day.slice(5)}</text>`; });
+
+  const line = series.map((d,i) => `${i===0?"M":"L"}${x(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(" ");
+  const area = `${line} L${x(series.length-1).toFixed(1)},${y(minV).toFixed(1)} L${x(0).toFixed(1)},${y(minV).toFixed(1)} Z`;
+  const lastI = series.length-1;
+
+  box.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="daily series">
+      <defs>
+        <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${col}" stop-opacity="0.30"/>
+          <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${grid}
+      <path d="${area}" fill="url(#${gid})"/>
+      <path d="${line}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(lastI).toFixed(1)}" cy="${y(series[lastI].value).toFixed(1)}" r="4.5" fill="${col}" stroke="var(--ground)" stroke-width="2"/>
+      ${xlab}
+    </svg>`;
+}
+
+// ---- multi-line chart: one line per app, day by day (the compare view) ----
+// byApp = { ledgerly:[{day,value}], promptly:[...], streamio:[...] }
+function drawMultiLine(boxId, byApp, gid, fmtY) {
+  const box = document.getElementById(boxId);
+  const apps = Object.keys(byApp).filter(a => byApp[a] && byApp[a].length);
+  if (!apps.length) { box.innerHTML = '<div class="loading" style="padding:36px 0">no data for this metric</div>'; return; }
+  const len = Math.max(...apps.map(a => byApp[a].length));
+  const days = byApp[apps[0]].map(d => d.day);
+  const W = 640, H = 230, padL = 50, padR = 14, padT = 14, padB = 28;
+  let maxV = 1, minV = 0;
+  apps.forEach(a => byApp[a].forEach(d => { if (d.value > maxV) maxV = d.value; if (d.value < minV) minV = d.value; }));
+  const span = (maxV - minV) || 1;
+  const x = i => padL + i * (W - padL - padR) / (len - 1 || 1);
+  const y = v => padT + (H - padT - padB) * (1 - (v - minV) / span);
+
+  let grid = "";
+  for (let t = 0; t <= 4; t++) {
+    const v = minV + span * t / 4, yy = y(v);
+    grid += `<line class="grid-line" x1="${padL}" y1="${yy.toFixed(1)}" x2="${W-padR}" y2="${yy.toFixed(1)}"/>`;
+    grid += `<text class="axis-label" x="${padL-8}" y="${(yy+3).toFixed(1)}" text-anchor="end">${fmtY(v)}</text>`;
+  }
+  let xlab = "";
+  [0, Math.floor(len/2), len-1].forEach(i => {
+    if (days[i]) xlab += `<text class="axis-label" x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle">${days[i].slice(5)}</text>`;
+  });
+  const lines = apps.map(a => {
+    const s = byApp[a];
+    const path = s.map((d,i) => `${i===0?"M":"L"}${x(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(" ");
+    return `<path d="${path}" fill="none" stroke="${APP_COLORS[a]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }).join("");
+  box.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="daily series by app">
+      ${grid}${lines}${xlab}
+    </svg>`;
+}
+
+// compact token formatter for the LLM y-axis (e.g. 21.5k)
+const fmtK = n => n >= 1000 ? (n/1000).toFixed(n >= 10000 ? 0 : 1) + "k" : Math.round(n);
+
+const APPS = ["ledgerly", "promptly", "streamio"];
+
+// sum several {day,value} series element-wise into one combined daily series
+function sumSeries(seriesList) {
+  const byDay = {};
+  seriesList.forEach(s => s.forEach(d => { byDay[d.day] = (byDay[d.day] || 0) + d.value; }));
+  return Object.keys(byDay).sort().map(day => ({ day, value: byDay[day] }));
+}
+
+async function loadApp(app) {
+  currentApp = app;
+  document.querySelectorAll(".apptabs button").forEach(b =>
+    b.setAttribute("aria-selected", String(b.dataset.app === app)));
+  document.getElementById("legend").hidden = (app !== "all");
+  const label = app === "all" ? "all apps" : app;
+  document.querySelectorAll(".rev-app").forEach(el => el.textContent = label);
+
+  if (!compareCache) compareCache = await api("/metrics/compare");
+
+  if (app === "all") return loadCompare();
+
+  // ---- single-app view: morning-snapshot tiles + 4 daily panels ----
+  try {
+    const au = await api(`/metrics/active_users?app=${app}`);
+    drawLine("auChart", au.series, "grad-au", v => Math.round(v));
+    tileLatestDay("k-dau", "f-dau", au.series, fmtInt);
+    document.getElementById("asof-date").textContent = au.series.length ? au.series[au.series.length-1].day : "—";
+
+    const rev = await api(`/metrics/revenue?app=${app}`);
+    drawLine("revChart", rev.series, "grad-rev", v => "$" + Math.round(v));
+    tileRollingWeek("k-rev", "f-rev", rev.series, fmtMoney);
+
+    const feat = await api(`/metrics/feature_uses?app=${app}`);
+    drawLine("featChart", feat.series, "grad-feat", v => Math.round(v));
+    tileLatestDay("k-feat", "f-feat", feat.series, fmtInt);
+
+    const llm = await api(`/metrics/llm_tokens?app=${app}`);
+    if (llm.series.some(d => d.value > 0)) drawLine("llmChart", llm.series, "grad-llm", fmtK);
+    else document.getElementById("llmChart").innerHTML =
+        `<div class="loading" style="padding:36px 0">No LLM backend — ${app} makes no llm_call events.</div>`;
+  } catch (e) {
+    document.getElementById("auChart").innerHTML = `<div class="err">${e.message}</div>`;
+  }
+  renderRetention();
+}
+
+// ---- compare view: one line per app, day by day, on each of the 4 metrics ----
+async function loadCompare() {
+  try {
+    const metric = async (path) => {
+      const out = {};
+      for (const a of APPS) { out[a] = (await api(`/metrics/${path}?app=${a}`)).series; }
+      return out;
+    };
+    const au = await metric("active_users");
+    drawMultiLine("auChart", au, "m-au", v => Math.round(v));
+    const auTot = sumSeries(APPS.map(a => au[a]));
+    tileLatestDay("k-dau", "f-dau", auTot, fmtInt);
+    document.getElementById("asof-date").textContent = auTot.length ? auTot[auTot.length-1].day : "—";
+
+    const rev = await metric("revenue");
+    drawMultiLine("revChart", rev, "m-rev", v => "$" + Math.round(v));
+    tileRollingWeek("k-rev", "f-rev", sumSeries(APPS.map(a => rev[a])), fmtMoney);
+
+    const feat = await metric("feature_uses");
+    drawMultiLine("featChart", feat, "m-feat", v => Math.round(v));
+    tileLatestDay("k-feat", "f-feat", sumSeries(APPS.map(a => feat[a])), fmtInt);
+
+    const llm = await metric("llm_tokens");
+    const llmActive = {}; APPS.forEach(a => { if (llm[a].some(d => d.value > 0)) llmActive[a] = llm[a]; });
+    if (Object.keys(llmActive).length) drawMultiLine("llmChart", llmActive, "m-llm", fmtK);
+    else document.getElementById("llmChart").innerHTML =
+        `<div class="loading" style="padding:36px 0">Only promptly has an LLM backend.</div>`;
+  } catch (e) {
+    document.getElementById("auChart").innerHTML = `<div class="err">${e.message}</div>`;
+  }
+  renderRetention();
+}
+
+// ---- retention tile: respects the selected Day-N and the current app ----
+async function renderRetention() {
+  document.getElementById("l-ret").textContent = `Day-${retDayN} retention`;
+  document.getElementById("f-ret").textContent =
+    currentApp === "all" ? `avg across apps, active ${retDayN}d after install`
+                         : `active ${retDayN} days after install`;
+  try {
+    if (!retentionByN[retDayN]) retentionByN[retDayN] = await api(`/metrics/retention?day_n=${retDayN}`);
+    const data = retentionByN[retDayN];
+    let pct;
+    if (currentApp === "all") {
+      pct = data.apps.reduce((s,a) => s + a.retention_pct, 0) / data.apps.length;
+    } else {
+      const row = data.apps.find(a => a.app === currentApp);
+      pct = row ? row.retention_pct : 0;
+    }
+    document.getElementById("k-ret").innerHTML = pct.toFixed(1) + '<span class="unit">%</span>';
+  } catch (e) {
+    document.getElementById("k-ret").textContent = "—";
+  }
+}
+
+document.querySelectorAll(".apptabs button").forEach(b =>
+  b.addEventListener("click", () => loadApp(b.dataset.app)));
+
+document.querySelectorAll(".retsel button").forEach(b =>
+  b.addEventListener("click", () => {
+    retDayN = Number(b.dataset.n);
+    document.querySelectorAll(".retsel button").forEach(x =>
+      x.setAttribute("aria-pressed", String(x === b)));
+    renderRetention();
+  }));
+
+loadApp("all");
+</script>

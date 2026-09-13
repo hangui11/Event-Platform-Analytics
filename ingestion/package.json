@@ -1,0 +1,19 @@
+{
+  "name": "event-ingestion",
+  "version": "1.0.0",
+  "description": "Codeway case - HTTP ingestion service: validates, enriches, and publishes events to Pub/Sub (which lands them in BigQuery).",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "send": "node sender.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google-cloud/pubsub": "^4.9.0",
+    "express": "^4.21.2",
+    "uuid": "^11.0.5"
+  }
+}
