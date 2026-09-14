@@ -2,9 +2,10 @@
 
 A small production-shaped event analytics platform on Google Cloud: a shared event
 envelope, a seeded generator, an HTTP ingestion service into Pub/Sub → BigQuery,
-and a fast Analytics API with a daily dashboard on top.
+and a fast Analytics API with a daily dashboard on top. The seeded generator
+produces **3 fictional apps** (`ledgerly` finance, `promptly` AI assistant,
+`streamio` video) over a **30-day window**, ~400 users per app.
 
-Author: Hang Yao
 
 ```
 generator (seed=42) → events.jsonl
@@ -58,10 +59,9 @@ GET /cache/stats                             # inspect the cache
 ```
 Every response includes `cached` and `bytes_processed`, so query cost is visible.
 
-**Dashboard** — the daily PM dashboard, live on the API above:
-```
-https://claude.ai/code/artifact/44d3bddf-33a2-4f78-a8c3-75a74082d6c9
-```
+**Dashboard** — the daily PM dashboard, live on the API above. Open
+`dashboard/index.html` in a browser; it fetches from the Analytics API and renders
+the four daily panels (active users, revenue, feature usage, LLM cost) per app.
 
 ---
 
@@ -72,7 +72,8 @@ https://claude.ai/code/artifact/44d3bddf-33a2-4f78-a8c3-75a74082d6c9
 | `README.md` | This file — front door: URLs, examples, key questions |
 | `WRITEUP.pdf` | **The short writeup** — event format, table layout, performance strategy, numbers |
 | `AI_worklog.pdf` | The AI work-log |
-| `generator.py` | Seeded event generator (seed=42) → `events.jsonl` |
+| `generator.py` | Seeded event generator (seed=42) → `events.jsonl` (3 apps × 30 days) |
+| `bigquery_table.sql` | The `CREATE TABLE` DDL (partition + cluster) for `analytics.events` |
 | `ingestion/` | Node.js ingestion service (`server.js`) + load tool (`sender.js`) |
 | `api/` | Analytics API (`main.py`, `requirements.txt`, `Procfile`). All metric SQL is embedded in `main.py`. |
 | `dashboard/` | The live daily dashboard (`index.html`) |
@@ -95,10 +96,10 @@ unique after dedup:      40,161
 
 **API performance (before → after, "promptly revenue per day"):**
 
-| Tier | Source | Bytes scanned | Latency (live, incl. network) |
+| Tier | Source | Bytes scanned | Latency (cold, incl. network) |
 |------|--------|:---:|:---:|
-| 1 raw events (dedup + JSON) | `analytics.events` | ~3 MB | ~0.9 s cold |
-| 2 pre-aggregated summary | `analytics.daily_metrics` | ~2.4 KB | — |
+| 1 raw events (dedup + JSON) | `analytics.events` | ~3 MB | ~0.9 s |
+| 2 pre-aggregated summary | `analytics.daily_metrics` | ~2.4 KB | ~0.75 s |
 | 3 in-memory cache hit | server RAM | 0 B | ~0.12 s |
 
 Tier 1 → Tier 2 is ~1,270× fewer bytes; the cache is ~5–7× faster and scans 0
