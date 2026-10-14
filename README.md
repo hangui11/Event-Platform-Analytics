@@ -1,5 +1,4 @@
-# Event Analytics Platform — Codeway Jr Data Engineer Case
-
+# Event Analytics Platform
 A small production-shaped event analytics platform on Google Cloud: a shared event
 envelope, a seeded generator, an HTTP ingestion service into Pub/Sub → BigQuery,
 and a fast Analytics API with a daily dashboard on top. The seeded generator
